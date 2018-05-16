@@ -1,5 +1,3 @@
 <resources>
-    <string name="app_name">My Application</string>
-    <string name="client_wait">Waiting for Client to Connect...</string>
-    <string name="client_connect">Connected to Client</string>
+    <string name="app_name">ChatBoxServer</string>
 </resources>

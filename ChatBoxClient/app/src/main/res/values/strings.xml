@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">ChatBoxClient</string>
+    <string name="server_connect">Connected to Server</string>
 </resources>

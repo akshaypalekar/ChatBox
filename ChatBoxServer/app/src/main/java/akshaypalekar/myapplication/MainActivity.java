@@ -4,6 +4,7 @@ import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -30,7 +31,10 @@ public class MainActivity extends AppCompatActivity {
     EditText messageEdit;
     Button messageSend;
 
-    String serverMessage;
+    ClientConnectThread clientConnectThread = null;
+    String ClientMessage ="";
+    String MessageLog = "";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,39 +46,55 @@ public class MainActivity extends AppCompatActivity {
         messageEdit = (EditText)findViewById(R.id.et_MessageEdit);
         messageSend = (Button)findViewById(R.id.bt_messageSend);
 
-        //ChatBoxServerThread chatboxServerThread = new ChatBoxServerThread();
-        new ChatBoxServerThread().execute();
+//        findViewById(R.id.et_MessageEdit).setOnClickListener( new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                messageEdit.setText("");
+//            }
+//        });
+
+        ChatBoxServerThread chatboxServerThread = new ChatBoxServerThread();
+        chatboxServerThread.start();
+
     }
 
-    public void sendMessage(){
+    public void sendMessage(View view){
         if(messageEdit.getText().toString().equals("")){
-            Toast.makeText(getApplicationContext(),"Kindly type you message",Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(),"Kindly type your message",Toast.LENGTH_SHORT).show();
             return;
         }
         if(serverSocket==null){
             return;
         }
-        serverMessage = messageEdit.getText().toString()+"\n";
+        ClientMessage = messageEdit.getText().toString()+"\n";
+        MessageLog +="You: " + ClientMessage;
+        messageWindow.setText(MessageLog);
+        messageEdit.setText("");
     }
 
 
-    private class ChatBoxServerThread extends AsyncTask<Void,Void,Void> {
+    private class ChatBoxServerThread extends Thread {
         @Override
-        protected Void doInBackground(Void... voids) {
+        public void run() {
             Socket listener = null;
             try {
                 serverSocket = new ServerSocket(ServerPort);
-                Log.d(TAG,"Server socket created at port"+serverSocket.toString());
+                MainActivity.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        MessageLog = "Waiting for Client to Connect...\n";
+                        messageWindow.setText(MessageLog);
+                    }
+                });
                 while(true){
                     listener = serverSocket.accept();
                     Log.d(TAG,"Server listening for client connections");
-                    ClientConnectThread clientConnectThread = new ClientConnectThread(listener);
+                    clientConnectThread = new ClientConnectThread(listener);
                     clientConnectThread.start();
-                    //new ClientConnectThread().execute(listener);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-            }finally {
+            } finally {
                 if(listener!=null){
                     try {
                         listener.close();
@@ -83,16 +103,13 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
-            return null;
-        }
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            messageWindow.setText(R.string.client_wait);
+
         }
     }
 
     private class ClientConnectThread extends Thread {
         Socket socket;
+
 
         public ClientConnectThread(Socket listener) {
             this.socket = listener;
@@ -106,31 +123,44 @@ public class MainActivity extends AppCompatActivity {
 
                 inputStream = new DataInputStream(socket.getInputStream());
                 outputStream = new DataOutputStream(socket.getOutputStream());
-                outputStream.writeUTF("Welcome");
+                outputStream.writeUTF("Welcome\n");
                 outputStream.flush();
 
                 //This thread prints 'Connected to Client' in the Message view
                 MainActivity.this.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        messageWindow.setText(R.string.client_connect);
+                        MessageLog += "Connected to Client\n"+"\n";
+                        messageWindow.setText(MessageLog);
                     }
                 });
 
                 while(true){
-                    if(inputStream.available()>0){
+                    if(inputStream.available()>0) {
                         final String newMessage = inputStream.readUTF();
-                                MainActivity.this.runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        messageWindow.setText(newMessage);
-                                    }
-                                });
+                        if (newMessage.equals("Client Disconnected\n")) {
+                            MainActivity.this.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    MessageLog += newMessage;
+                                    messageWindow.setText(MessageLog);
+                                }
+                            });
+
+                        } else {
+                            MainActivity.this.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    MessageLog += "Client: " + newMessage;
+                                    messageWindow.setText(MessageLog);
+                                }
+                            });
+                        }
                     }
-                    if(!serverMessage.equals("")){
-                        outputStream.writeUTF(serverMessage);
+                    if(!ClientMessage.equals("")){
+                        outputStream.writeUTF(ClientMessage);
                         outputStream.flush();
-                        serverMessage = "";
+                        ClientMessage = "";
                     }
                 }
             } catch (IOException e) {
