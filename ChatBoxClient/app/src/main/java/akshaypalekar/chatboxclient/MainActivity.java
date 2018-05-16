@@ -14,26 +14,20 @@ import java.io.IOException;
 import java.net.Socket;
 
 public class MainActivity extends AppCompatActivity {
-
     static final String TAG = "MainActivity";
-
     static final int ClientPort = 5000;
     static final String ClientIp = "10.0.2.2";
-
     TextView messageWindow;
     EditText messageEdit;
     Button messageSend, connectToServer, disconnectFromServer;
-
     String serverMessage = "";
     String MessageLog = "";
-
     ServerConnectThread serverConnectThread;
-
+    Socket socket = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         connectToServer = (Button) findViewById(R.id.bt_ConnectToServer);
         messageWindow = (TextView) findViewById(R.id.tv_MessageWindow);
         messageEdit = (EditText) findViewById(R.id.et_MessageEdit);
@@ -41,22 +35,18 @@ public class MainActivity extends AppCompatActivity {
         disconnectFromServer = (Button) findViewById(R.id.bt_Disconnect);
         disconnectFromServer.setEnabled(false);
     }
-
     public void connect(View view) {
-
         serverConnectThread = new ServerConnectThread(ClientIp, ClientPort);
         serverConnectThread.start();
         connectToServer.setEnabled(false);
         disconnectFromServer.setEnabled(true);
     }
-
     public void disconnect(View view) {
         if(serverConnectThread==null){
             return;
         }
         serverConnectThread.disconnect();
     }
-
     public void sendMessage(View view) {
         if (messageEdit.getText().toString().equals("")) {
             Toast.makeText(getApplicationContext(), "Kindly type you message", Toast.LENGTH_SHORT).show();
@@ -67,21 +57,27 @@ public class MainActivity extends AppCompatActivity {
         messageWindow.setText(MessageLog);
         messageEdit.setText("");
     }
-
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
     private class ServerConnectThread extends Thread {
-
         String ip;
         int port;
         boolean flag = false;
-
         ServerConnectThread(String ClientIp, int ClientPort) {
             this.ip = ClientIp;
             this.port = ClientPort;
         }
-
         @Override
         public void run() {
-            Socket socket = null;
             DataOutputStream outputStream = null;
             DataInputStream inputStream = null;
             try {
@@ -90,7 +86,6 @@ public class MainActivity extends AppCompatActivity {
                 outputStream = new DataOutputStream(socket.getOutputStream());
                 outputStream.writeUTF("Hello Server\n");
                 outputStream.flush();
-
                 MainActivity.this.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -98,7 +93,6 @@ public class MainActivity extends AppCompatActivity {
                         messageWindow.setText(MessageLog);
                     }
                 });
-
                 while (!flag) {
                     if (inputStream.available() > 0) {
                         final String newMessage = inputStream.readUTF();
@@ -116,13 +110,11 @@ public class MainActivity extends AppCompatActivity {
                         serverMessage = "";
                     }
                 }
-
                 while (flag){
                     outputStream.writeUTF("Client Disconnected\n");
                     outputStream.flush();
                     break;
                 }
-
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
@@ -133,7 +125,6 @@ public class MainActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                 }
-
                 if (outputStream != null) {
                     try {
                         outputStream.close();
@@ -141,7 +132,6 @@ public class MainActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                 }
-
                 if (inputStream != null) {
                     try {
                         inputStream.close();

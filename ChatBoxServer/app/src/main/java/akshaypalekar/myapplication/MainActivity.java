@@ -1,5 +1,7 @@
 package akshaypalekar.myapplication;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -19,45 +21,24 @@ import java.net.Socket;
 public class MainActivity extends AppCompatActivity {
 
     static final String TAG = "MainActivity";
-
-    //The server will start at the this port
-    static final int ServerPort = 6000;
-
-    //The socket which will be used to communicate with the client
-    ServerSocket serverSocket;
-
-    //Variable for the UI elements
-    TextView messageWindow;
+    static final int ServerPort = 6000;//The server will start at the this port
+    ServerSocket serverSocket; //The socket which will be used to communicate with the client
+    TextView messageWindow;//Variable for the UI elements
     EditText messageEdit;
     Button messageSend;
-
-    ClientConnectThread clientConnectThread = null;
-    String ClientMessage ="";
-    String MessageLog = "";
-
-
+    ClientConnectThread clientConnectThread = null; //Thread for communicating with client
+    String ClientMessage =""; //Client Message
+    String MessageLog = ""; //Message Log
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        //Binding UI elements to the variables
-        messageWindow = (TextView)findViewById(R.id.tv_MessageWindow);
+        messageWindow = (TextView)findViewById(R.id.tv_MessageWindow);//Binding UI elements to the variables
         messageEdit = (EditText)findViewById(R.id.et_MessageEdit);
         messageSend = (Button)findViewById(R.id.bt_messageSend);
-
-//        findViewById(R.id.et_MessageEdit).setOnClickListener( new View.OnClickListener() {
-//            @Override
-//            public void onClick(View v) {
-//                messageEdit.setText("");
-//            }
-//        });
-
         ChatBoxServerThread chatboxServerThread = new ChatBoxServerThread();
         chatboxServerThread.start();
-
     }
-
     public void sendMessage(View view){
         if(messageEdit.getText().toString().equals("")){
             Toast.makeText(getApplicationContext(),"Kindly type your message",Toast.LENGTH_SHORT).show();
@@ -71,8 +52,17 @@ public class MainActivity extends AppCompatActivity {
         messageWindow.setText(MessageLog);
         messageEdit.setText("");
     }
-
-
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (serverSocket != null) {
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
     private class ChatBoxServerThread extends Thread {
         @Override
         public void run() {
@@ -103,38 +93,29 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
-
         }
     }
-
     private class ClientConnectThread extends Thread {
         Socket socket;
-
-
         public ClientConnectThread(Socket listener) {
             this.socket = listener;
         }
-
         @Override
         public void run() {
             DataInputStream inputStream = null;
             DataOutputStream outputStream = null;
             try {
-
                 inputStream = new DataInputStream(socket.getInputStream());
                 outputStream = new DataOutputStream(socket.getOutputStream());
                 outputStream.writeUTF("Welcome\n");
                 outputStream.flush();
-
-                //This thread prints 'Connected to Client' in the Message view
                 MainActivity.this.runOnUiThread(new Runnable() {
                     @Override
-                    public void run() {
+                    public void run() {//This thread prints 'Connected to Client' in the Message view
                         MessageLog += "Connected to Client\n"+"\n";
                         messageWindow.setText(MessageLog);
                     }
                 });
-
                 while(true){
                     if(inputStream.available()>0) {
                         final String newMessage = inputStream.readUTF();
@@ -146,7 +127,6 @@ public class MainActivity extends AppCompatActivity {
                                     messageWindow.setText(MessageLog);
                                 }
                             });
-
                         } else {
                             MainActivity.this.runOnUiThread(new Runnable() {
                                 @Override
